@@ -1,5 +1,5 @@
 pub use error::WSocketResult;
-pub use error::WebsocketError;
+pub use error::WSocketError;
 pub use ws::WebSocket;
 
 mod error;

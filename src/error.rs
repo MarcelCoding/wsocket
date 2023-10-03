@@ -3,10 +3,10 @@ use std::str::Utf8Error;
 
 use thiserror::Error;
 
-pub type WSocketResult<T> = Result<T, WebsocketError>;
+pub type WSocketResult<T> = Result<T, WSocketError>;
 
 #[derive(Error, Debug)]
-pub enum WebsocketError {
+pub enum WSocketError {
   #[error("unknown opcode `{0}`")]
   UnknownOpCode(u8),
   #[error("reserve bit must be `0`")]

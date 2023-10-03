@@ -1,7 +1,7 @@
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 use crate::error::WSocketResult;
-use crate::WebsocketError;
+use crate::WSocketError;
 
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
@@ -15,7 +15,7 @@ pub(crate) enum OpCode {
 }
 
 impl TryFrom<u8> for OpCode {
-  type Error = WebsocketError;
+  type Error = WSocketError;
 
   fn try_from(value: u8) -> Result<Self, Self::Error> {
     match value {
@@ -25,7 +25,7 @@ impl TryFrom<u8> for OpCode {
       0x8 => Ok(Self::Close),
       0x9 => Ok(Self::Ping),
       0xA => Ok(Self::Pong),
-      value => Err(WebsocketError::UnknownOpCode(value)),
+      value => Err(WSocketError::UnknownOpCode(value)),
     }
   }
 }
@@ -84,7 +84,7 @@ impl<'a> Frame<'a> {
     let masked = b2 & 0b_1000_0000 != 0;
 
     if rsv != 0 {
-      return Err(WebsocketError::ReserveBitMustBeNull);
+      return Err(WSocketError::ReserveBitMustBeNull);
     }
 
     let len = match opcode {
@@ -95,11 +95,11 @@ impl<'a> Frame<'a> {
       },
       OpCode::Close | OpCode::Ping | OpCode::Pong => {
         if !fin {
-          return Err(WebsocketError::ControlFrameMustNotBeFragmented);
+          return Err(WSocketError::ControlFrameMustNotBeFragmented);
         }
 
         if len > 125 {
-          return Err(WebsocketError::ControlFrameMustHaveAPayloadLengthOf125BytesOrLess);
+          return Err(WSocketError::ControlFrameMustHaveAPayloadLengthOf125BytesOrLess);
         }
 
         len
@@ -107,7 +107,7 @@ impl<'a> Frame<'a> {
     };
 
     if len > max_payload_len {
-      return Err(WebsocketError::PayloadTooLarge);
+      return Err(WSocketError::PayloadTooLarge);
     }
 
     read_payload(read, &mut buf[..len], masked).await?;

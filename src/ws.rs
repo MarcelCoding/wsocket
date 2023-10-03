@@ -6,7 +6,7 @@ use tracing::{error, info};
 
 use crate::error::WSocketResult;
 use crate::frame::{Frame, OpCode};
-use crate::{CloseCode, Message, WebsocketError};
+use crate::{CloseCode, Message, WSocketError};
 
 pub struct WebSocket<IO> {
   io: IO,
@@ -73,7 +73,7 @@ impl<IO: AsyncWrite + AsyncRead> WebSocket<IO> {
 impl<W: Unpin + AsyncWrite> WebSocket<W> {
   pub async fn send(&mut self, message: Message<'_>) -> WSocketResult<()> {
     if self.is_closed() {
-      return Err(WebsocketError::NotConnected)?;
+      return Err(WSocketError::NotConnected)?;
     }
 
     let res = match message {
@@ -94,7 +94,7 @@ impl<W: Unpin + AsyncWrite> WebSocket<W> {
     // set stream as closed and send close frame, if error wan't a io error
     if let Err(err) = &res {
       match err {
-        WebsocketError::Io(_) => {}
+        WSocketError::Io(_) => {}
         _ => {
           let buf = encode_close_body(CloseCode::InternalError, None);
           let frame = Frame::new(true, OpCode::Close, &buf);
@@ -112,7 +112,7 @@ impl<W: Unpin + AsyncWrite> WebSocket<W> {
 
   async fn send_frame(&mut self, frame: Frame<'_>) -> WSocketResult<()> {
     if frame.data.len() > self.max_payload_len {
-      return Err(WebsocketError::PayloadTooLarge);
+      return Err(WSocketError::PayloadTooLarge);
     }
 
     #[cfg(not(feature = "client"))]
@@ -140,7 +140,7 @@ impl<W: Unpin + AsyncWrite> WebSocket<W> {
 impl<R: Unpin + AsyncRead> WebSocket<R> {
   pub async fn recv<'a>(&mut self, buf: &'a mut [u8]) -> WSocketResult<Message<'a>> {
     if self.is_closed() {
-      return Err(WebsocketError::NotConnected)?;
+      return Err(WSocketError::NotConnected)?;
     }
 
     let event = self.recv_message(buf).await;
@@ -158,16 +158,16 @@ impl<R: Unpin + AsyncRead> WebSocket<R> {
     let frame = Frame::read(&mut self.io, buf, self.max_payload_len).await?;
 
     if !frame.fin {
-      return Err(WebsocketError::FramedMessagesAreNotSupported);
+      return Err(WSocketError::FramedMessagesAreNotSupported);
     }
 
     match frame.opcode {
-      OpCode::Continuation => Err(WebsocketError::FramedMessagesAreNotSupported),
-      OpCode::Text => Err(WebsocketError::TextFramesAreNotSupported),
+      OpCode::Continuation => Err(WSocketError::FramedMessagesAreNotSupported),
+      OpCode::Text => Err(WSocketError::TextFramesAreNotSupported),
       OpCode::Binary => Ok(Message::Binary(frame.data)),
       OpCode::Close => Ok(parse_close_body(frame.data)?),
-      OpCode::Ping => Err(WebsocketError::PingFramesAreNotSupported),
-      OpCode::Pong => Err(WebsocketError::PongFramesAreNotSupported),
+      OpCode::Ping => Err(WSocketError::PingFramesAreNotSupported),
+      OpCode::Pong => Err(WSocketError::PongFramesAreNotSupported),
     }
   }
 }
@@ -200,6 +200,6 @@ fn parse_close_body(msg: &[u8]) -> WSocketResult<Message> {
         reason: msg,
       })
     }
-    code => Err(WebsocketError::InvalidCloseCode(code)),
+    code => Err(WSocketError::InvalidCloseCode(code)),
   }
 }
