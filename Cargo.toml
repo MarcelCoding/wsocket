@@ -1,0 +1,21 @@
+[package]
+name = "wsocket"
+description = "Lighweight, fast and native WebSocket implementation for Rust."
+license = "Apache-2.0 OR MIT"
+keywords = ["websocket", "tokio", "async", "http"]
+repository = "https://github.com/MarcelCoding/wsocket.git"
+homepage = "https://github.com/MarcelCoding/wsocket"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+client = ["dep:rand"]
+
+[dependencies]
+tokio = { version = "1.32", default-features = false, features = ["io-util"] }
+rand = { version = "0.8", default-features = false, optional = true }
+thiserror = "1.0"
+tracing = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1.32", default-features = false, features = ["macros", "rt-multi-thread"] }
