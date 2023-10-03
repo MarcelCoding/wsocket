@@ -1,4 +1,4 @@
-# wsocket
+# WSocket
 
 Lighweight, fast and native WebSocket implementation for Rust.
 
