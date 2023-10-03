@@ -30,7 +30,7 @@ impl<IO> WebSocket<IO> {
 
   #[inline]
   #[cfg(feature = "client")]
-  pub const fn client(io: IO, max_payload_len: usize, masking: bool) -> Self {
+  pub fn client(io: IO, max_payload_len: usize, masking: bool) -> Self {
     Self {
       io,
       max_payload_len,

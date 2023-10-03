@@ -12,8 +12,8 @@ edition = "2021"
 client = ["dep:rand"]
 
 [dependencies]
+rand = { version = "0.8", default-features = false, features = ["std", "std_rng"], optional = true }
 tokio = { version = "1.32", default-features = false, features = ["io-util"] }
-rand = { version = "0.8", default-features = false, optional = true }
 thiserror = "1.0"
 tracing = "0.1"
 
