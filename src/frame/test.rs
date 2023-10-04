@@ -68,17 +68,17 @@ test_read_frame! {
     "Hello".as_bytes()
   ),
   test_read_256_binary_unmasked_frame: (
-    include_bytes!("./test/256_in.bin"),
+    include_bytes!("../test/frame_256_in.bin"),
     256,
     true,
     OpCode::Binary,
-    include_bytes!("./test/256_out.bin")
+    include_bytes!("../test/frame_256_out.bin")
   ),
   test_read_65kib_binary_unmasked_frame: (
-    include_bytes!("./test/65536_in.bin"),
+    include_bytes!("../test/frame_65536_in.bin"),
     65536,
     true,
     OpCode::Binary,
-    include_bytes!("./test/65536_out.bin")
+    include_bytes!("../test/frame_65536_out.bin")
   ),
 }
