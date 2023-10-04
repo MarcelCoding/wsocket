@@ -1,5 +1,6 @@
-pub use error::WSocketResult;
 pub use error::WSocketError;
+pub use error::WSocketResult;
+use std::fmt::{Display, Formatter};
 pub use ws::WebSocket;
 
 mod error;
@@ -18,7 +19,7 @@ pub enum Message<'a> {
 }
 
 /// When closing an established connection an endpoint MAY indicate a reason for closure.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
 pub enum CloseCode {
   /// The purpose for which the connection was established has been fulfilled
   Normal = 1000,
@@ -77,6 +78,25 @@ impl From<u16> for CloseCode {
       1011 => CloseCode::InternalError,
       1015 => CloseCode::TlsHandshake,
       _ => CloseCode::PolicyViolation,
+    }
+  }
+}
+
+impl Display for CloseCode {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    match self {
+      CloseCode::Normal => write!(f, "Normal"),
+      CloseCode::Away => write!(f, "Normal"),
+      CloseCode::ProtocolError => write!(f, "ProtocolError"),
+      CloseCode::Unsupported => write!(f, "Unsupported"),
+      CloseCode::NoStatusRcvd => write!(f, "NoStatusRcvd"),
+      CloseCode::Abnormal => write!(f, "Abnormal"),
+      CloseCode::InvalidPayload => write!(f, "InvalidPayload"),
+      CloseCode::PolicyViolation => write!(f, "PolicyViolation"),
+      CloseCode::MessageTooBig => write!(f, "MessageTooBig"),
+      CloseCode::MandatoryExt => write!(f, "MandatoryExt"),
+      CloseCode::InternalError => write!(f, "InternalError"),
+      CloseCode::TlsHandshake => write!(f, "TlsHandshake"),
     }
   }
 }

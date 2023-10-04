@@ -1,6 +1,7 @@
 use std::io;
 use std::str::Utf8Error;
 
+use crate::CloseCode;
 use thiserror::Error;
 
 pub type WSocketResult<T> = Result<T, WSocketError>;
@@ -21,6 +22,8 @@ pub enum WSocketError {
   Io(#[from] io::Error),
   #[error("not connected")]
   NotConnected,
+  #[error("connection closed: `{0}` `{}`", .1.as_ref().unwrap_or(&"".to_string()))]
+  ConnectionClosed(CloseCode, Option<String>),
   #[error("framed messages are not supported")]
   FramedMessagesAreNotSupported,
   #[error("text frames are not supported")]
@@ -33,4 +36,31 @@ pub enum WSocketError {
   InvalidUtf8(#[from] Utf8Error),
   #[error("invalid close close `{0}`")]
   InvalidCloseCode(u16),
+}
+
+impl WSocketError {
+  pub(crate) fn is_io_error(&self) -> bool {
+    matches!(self, WSocketError::Io(_))
+  }
+
+  pub(crate) fn close_code(&self) -> Option<CloseCode> {
+    match self {
+      WSocketError::UnknownOpCode(_) => Some(CloseCode::ProtocolError),
+      WSocketError::ReserveBitMustBeNull => Some(CloseCode::Unsupported),
+      WSocketError::ControlFrameMustNotBeFragmented => Some(CloseCode::Unsupported),
+      WSocketError::ControlFrameMustHaveAPayloadLengthOf125BytesOrLess => {
+        Some(CloseCode::ProtocolError)
+      }
+      WSocketError::PayloadTooLarge => Some(CloseCode::MessageTooBig),
+      WSocketError::Io(_) => None,
+      WSocketError::NotConnected => None,
+      WSocketError::ConnectionClosed(..) => None,
+      WSocketError::FramedMessagesAreNotSupported => Some(CloseCode::Unsupported),
+      WSocketError::TextFramesAreNotSupported => Some(CloseCode::Unsupported),
+      WSocketError::PingFramesAreNotSupported => Some(CloseCode::Unsupported),
+      WSocketError::PongFramesAreNotSupported => Some(CloseCode::Unsupported),
+      WSocketError::InvalidUtf8(_) => Some(CloseCode::InvalidPayload),
+      WSocketError::InvalidCloseCode(_) => None,
+    }
+  }
 }

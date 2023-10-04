@@ -2,6 +2,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use tokio::io::{split, AsyncRead, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf};
+use tokio::select;
+use tokio::sync::broadcast;
 use tracing::{error, info};
 
 use crate::error::WSocketResult;
@@ -14,6 +16,7 @@ pub struct WebSocket<IO> {
   #[cfg(feature = "client")]
   masking: bool,
   closed: Arc<AtomicBool>,
+  close: broadcast::Sender<(CloseCode, Option<String>)>,
 }
 
 impl<IO> WebSocket<IO> {
@@ -25,6 +28,7 @@ impl<IO> WebSocket<IO> {
       #[cfg(feature = "client")]
       masking: false,
       closed: Arc::new(AtomicBool::new(false)),
+      close: broadcast::Sender::new(1),
     }
   }
 
@@ -36,15 +40,17 @@ impl<IO> WebSocket<IO> {
       max_payload_len,
       masking,
       closed: Arc::new(AtomicBool::new(false)),
+      close: broadcast::Sender::new(1),
     }
   }
 
   pub fn is_closed(&self) -> bool {
-    self.closed.load(Ordering::Relaxed)
+    self.closed.load(Ordering::SeqCst)
   }
 
-  fn set_closed(&self) {
-    self.closed.store(true, Ordering::Relaxed)
+  fn set_closed(&self, code: CloseCode, reason: Option<String>) {
+    self.closed.store(true, Ordering::SeqCst);
+    let _ = self.close.send((code, reason));
   }
 }
 
@@ -58,6 +64,7 @@ impl<IO: AsyncWrite + AsyncRead> WebSocket<IO> {
         #[cfg(feature = "client")]
         masking: self.masking,
         closed: self.closed.clone(),
+        close: self.close.clone(),
       },
       WebSocket {
         io: write,
@@ -65,6 +72,7 @@ impl<IO: AsyncWrite + AsyncRead> WebSocket<IO> {
         #[cfg(feature = "client")]
         masking: self.masking,
         closed: self.closed,
+        close: self.close,
       },
     )
   }
@@ -76,38 +84,49 @@ impl<W: Unpin + AsyncWrite> WebSocket<W> {
       return Err(WSocketError::NotConnected)?;
     }
 
-    let res = match message {
-      Message::Binary(data) => {
-        let frame = Frame::new(true, OpCode::Binary, data);
-        self.send_frame(frame).await
-      }
-      Message::Close { code, reason } => {
-        let buf = encode_close_body(code, reason);
-        let frame = Frame::new(true, OpCode::Close, &buf);
-        let res = self.send_frame(frame).await;
-        self.set_closed();
-        info!("Marking write channel as closed");
-        res
+    let mut close = self.close.subscribe();
+
+    let write = async {
+      match message {
+        Message::Binary(data) => {
+          let frame = Frame::new(true, OpCode::Binary, data);
+          self.send_frame(frame).await
+        }
+        Message::Close { code, reason } => {
+          let buf = encode_close_body(code, reason);
+          let frame = Frame::new(true, OpCode::Close, &buf);
+          self.send_frame(frame).await
+        }
       }
     };
 
-    // set stream as closed and send close frame, if error wan't a io error
-    if let Err(err) = &res {
-      match err {
-        WSocketError::Io(_) => {}
-        _ => {
-          let buf = encode_close_body(CloseCode::InternalError, None);
-          let frame = Frame::new(true, OpCode::Close, &buf);
-          if let Err(err) = self.send_frame(frame).await {
-            error!("Failed to send close frame: {:?}", err);
-          }
+    // aboard send if connection got closed
+    let result = select! {
+      result = write => result,
+      result = close.recv() => {
+        let (code, reason) = result.unwrap();
+        Err(WSocketError::ConnectionClosed(code, reason))
+      }
+    };
+
+    // mark stream as closed and send close frame, if error wasn't an io error
+    if let Err(WSocketError::ConnectionClosed(..)) = result {
+    } else if let Err(err) = &result {
+      let code = err.close_code().unwrap_or(CloseCode::InternalError);
+
+      if !err.is_io_error() {
+        let buf = encode_close_body(code, None);
+        let frame = Frame::new(true, OpCode::Close, &buf);
+        if let Err(err) = self.send_frame(frame).await {
+          error!("Failed to send close frame: {}", err);
         }
       }
-      self.set_closed();
+
+      self.set_closed(code, Some(format!("{}", err)));
       info!("Marking write channel as closed");
     }
 
-    res
+    result
   }
 
   async fn send_frame(&mut self, frame: Frame<'_>) -> WSocketResult<()> {
@@ -120,7 +139,7 @@ impl<W: Unpin + AsyncWrite> WebSocket<W> {
 
     #[cfg(feature = "client")]
     if self.masking {
-      let mask = rand::random::<u32>().to_ne_bytes();
+      let mask = rand::random();
       frame.write_with_mask(&mut self.io, mask).await?;
     } else {
       frame.write_without_mask(&mut self.io).await?;
@@ -128,11 +147,6 @@ impl<W: Unpin + AsyncWrite> WebSocket<W> {
 
     self.io.flush().await?;
 
-    Ok(())
-  }
-
-  pub async fn flush(&mut self) -> WSocketResult<()> {
-    self.io.flush().await?;
     Ok(())
   }
 }
@@ -143,15 +157,30 @@ impl<R: Unpin + AsyncRead> WebSocket<R> {
       return Err(WSocketError::NotConnected)?;
     }
 
-    let event = self.recv_message(buf).await;
+    let mut close = self.close.subscribe();
+
+    let result = select! {
+      result = self.recv_message(buf) => result,
+      result = close.recv() => {
+        let (code, reason) = result.unwrap();
+        Err(WSocketError::ConnectionClosed(code, reason))
+      }
+    };
 
     // set connection to closed
-    if let Ok(Message::Close { .. }) | Err(..) = event {
+    if let Ok(Message::Close { code, reason }) = result {
       info!("marking read channel as closed");
-      self.set_closed();
+      self.set_closed(code, reason.map(|x| x.to_string()));
     }
 
-    event
+    if let Err(WSocketError::ConnectionClosed(..)) = result {
+    } else if let Err(err) = &result {
+      let code = err.close_code().unwrap_or(CloseCode::InternalError);
+      info!("marking read channel as closed");
+      self.set_closed(code, Some(format!("{}", err)));
+    }
+
+    result
   }
 
   async fn recv_message<'a>(&mut self, buf: &'a mut [u8]) -> WSocketResult<Message<'a>> {
