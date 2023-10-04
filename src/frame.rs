@@ -120,7 +120,7 @@ impl<'a> Frame<'a> {
   }
 
   pub(crate) async fn write_without_mask<W: Unpin + AsyncWrite>(
-    self,
+    &self,
     write: &mut W,
   ) -> WSocketResult<()> {
     self.write_header(write, 0).await?;
@@ -131,12 +131,20 @@ impl<'a> Frame<'a> {
 
   #[cfg(feature = "client")]
   pub async fn write_with_mask<W: Unpin + AsyncWrite>(
-    self,
+    &self,
     write: &mut W,
     mask: [u8; 4],
   ) -> WSocketResult<()> {
     self.write_header(write, 0x80).await?;
     write.write_all(&mask).await?;
+
+    // TODO: Use SIMD wherever possible for best performance
+    // TODO: is it ok, that the user provided data buffer is modified?
+    // self
+    //   .data
+    //   .iter_mut()
+    //   .enumerate()
+    //   .for_each(|(idx, byte)| *byte ^= unsafe { mask.get_unchecked(idx & 3) });
 
     for i in 0..self.data.len() {
       // TODO: Use SIMD wherever possible for best performance
