@@ -187,7 +187,7 @@ async fn read_payload<R: Unpin + AsyncRead>(
     buf
       .iter_mut()
       .enumerate()
-      .for_each(|(idx, byte)| *byte ^= mask[idx & 3])
+      .for_each(|(idx, byte)| *byte ^= unsafe { mask.get_unchecked(idx & 3) })
   } else {
     read.read_exact(buf).await?;
   }
