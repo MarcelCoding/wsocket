@@ -104,7 +104,7 @@ impl Close {
     Self { code, reason }
   }
 
-  pub fn encode(&self) -> WSocketResult<Vec<u8>> {
+  pub(crate) fn encode(&self) -> WSocketResult<Vec<u8>> {
     if !self.code.is_send_allowed() {
       todo!("Not implemented");
     }
@@ -121,7 +121,7 @@ impl Close {
     }
   }
 
-  pub fn parse_close_body(payload: &[u8]) -> WSocketResult<Self> {
+  pub(crate) fn parse(payload: &[u8]) -> WSocketResult<Self> {
     let len = payload.len();
 
     let code = if len >= 2 {

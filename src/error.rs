@@ -22,8 +22,8 @@ pub enum WSocketError {
   ControlFrameMustHaveAPayloadLengthOf125BytesOrLess,
   #[error("payload too large")]
   PayloadTooLarge,
-  #[error(transparent)]
-  Io(#[from] io::Error),
+  #[error("io error")]
+  Io(#[source] #[from] io::Error),
   #[error("not connected")]
   NotConnected,
   #[error("connection closed")]
@@ -32,8 +32,8 @@ pub enum WSocketError {
   FramedMessagesAreNotSupported,
   #[error("text frames are not supported")]
   TextFramesAreNotSupported,
-  #[error(transparent)]
-  InvalidUtf8(#[from] FromUtf8Error),
+  #[error("invalid utf8")]
+  InvalidUtf8(#[source] #[from] FromUtf8Error),
   #[error("invalid close close `{0}`")]
   InvalidCloseCode(u16),
 }
