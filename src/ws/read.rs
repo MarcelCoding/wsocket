@@ -47,9 +47,7 @@ impl<R: Unpin + AsyncRead> WebSocket<R> {
       OpCode::Continuation => Err(WSocketError::FramedMessagesAreNotSupported),
       OpCode::Text => Err(WSocketError::TextFramesAreNotSupported),
       OpCode::Binary => Ok(Message::Binary(frame.data)),
-      OpCode::Close => Err(WSocketError::ConnectionClosed(Close::parse(
-        frame.data,
-      )?)),
+      OpCode::Close => Err(WSocketError::ConnectionClosed(Close::parse(frame.data)?)),
       OpCode::Ping => Ok(Message::Ping(frame.data)),
       OpCode::Pong => Ok(Message::Pong(frame.data)),
     }

@@ -10,10 +10,18 @@ edition = "2021"
 
 [features]
 client = ["dep:rand"]
+handshake = ["dep:hyper", "dep:base64", "dep:http-body-util", "dep:hyper-util", "tokio/rt", "hyper/client", "hyper/http1"]
+upgrade = ["dep:hyper", "dep:base64", "dep:http-body-util", "dep:hyper-util", "hyper/http1", "dep:sha1", "dep:pin-project-lite"]
 
 [dependencies]
 rand = { version = "0.8", default-features = false, features = ["std", "std_rng"], optional = true }
 tokio = { version = "1.34", default-features = false, features = ["io-util", "sync", "macros"] }
+hyper-util = { version = "0.1", default-features = false, optional = true, features = ["tokio"] }
+hyper = { version = "1.0", default-features = false, features = [], optional = true }
+pin-project-lite = { version = "0.2", optional = true }
+http-body-util = { version = "0.1", optional = true }
+base64 = { version = "0.21", optional = true }
+sha1 = { version = "0.10", optional = true }
 thiserror = "1.0"
 tracing = "0.1"
 
