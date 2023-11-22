@@ -4,7 +4,9 @@ use std::task::Poll;
 
 use http_body_util::Full;
 use hyper::body::Bytes;
-use hyper::header::{CONNECTION, UPGRADE};
+use hyper::header::{
+  CONNECTION, SEC_WEBSOCKET_ACCEPT, SEC_WEBSOCKET_KEY, SEC_WEBSOCKET_VERSION, UPGRADE,
+};
 use hyper::upgrade::Upgraded;
 use hyper::Request;
 use hyper::Response;
@@ -30,11 +32,11 @@ pub fn upgrade<B>(
 
   let key = request
     .headers()
-    .get("Sec-WebSocket-Key")
+    .get(SEC_WEBSOCKET_KEY)
     .ok_or(WSocketError::MissingSecWebSocketKey)?;
   if request
     .headers()
-    .get("Sec-WebSocket-Version")
+    .get(SEC_WEBSOCKET_VERSION)
     .map(|v| v.as_bytes())
     != Some(b"13")
   {
@@ -46,7 +48,7 @@ pub fn upgrade<B>(
     .header(CONNECTION, "upgrade")
     .header(UPGRADE, "websocket")
     .header(
-      "Sec-WebSocket-Accept",
+      SEC_WEBSOCKET_ACCEPT,
       &sec_websocket_protocol(key.as_bytes()),
     )
     .body(Full::new(Bytes::from("switching to websocket protocol")))
