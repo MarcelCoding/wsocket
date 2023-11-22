@@ -10,7 +10,7 @@ edition = "2021"
 
 [features]
 client = ["dep:rand"]
-handshake = ["dep:hyper", "dep:base64", "dep:http-body-util", "dep:hyper-util", "tokio/rt", "hyper/client", "hyper/http1"]
+handshake = ["dep:hyper", "dep:base64", "dep:http-body-util", "dep:hyper-util", "hyper/client", "hyper/http1"]
 upgrade = ["dep:hyper", "dep:base64", "dep:http-body-util", "dep:hyper-util", "hyper/http1", "dep:sha1", "dep:pin-project-lite"]
 
 [dependencies]
