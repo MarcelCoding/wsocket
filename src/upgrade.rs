@@ -1,3 +1,5 @@
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use std::pin::Pin;
 use std::task::Context;
 use std::task::Poll;
@@ -8,13 +10,14 @@ use hyper::header::{
   CONNECTION, SEC_WEBSOCKET_ACCEPT, SEC_WEBSOCKET_KEY, SEC_WEBSOCKET_VERSION, UPGRADE,
 };
 use hyper::http::HeaderName;
+use hyper::upgrade::Upgraded;
 use hyper::Response;
 use hyper::{HeaderMap, Request};
 use hyper_util::rt::TokioIo;
 use pin_project_lite::pin_project;
+use sha1::{Digest, Sha1};
 
-use crate::idk::sec_websocket_protocol;
-use crate::{UpgradedWebsocketIo, WSocketError, WebSocket};
+use crate::{WSocketError, WebSocket};
 
 pin_project! {
   pub struct UpgradeFut {
@@ -68,6 +71,14 @@ pub fn is_upgrade_request<B>(request: &Request<B>) -> bool {
     && header_contains_value(request.headers(), UPGRADE, "websocket")
 }
 
+fn sec_websocket_protocol(key: &[u8]) -> String {
+  let mut sha1 = Sha1::default();
+  sha1.update(key);
+  sha1.update(b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"); // magic string
+  let result = sha1.finalize();
+  STANDARD.encode(&result[..])
+}
+
 fn header_contains_value(headers: &HeaderMap, header: HeaderName, value: impl AsRef<[u8]>) -> bool {
   let value = value.as_ref();
   for header in headers.get_all(header) {
@@ -103,7 +114,7 @@ fn trim_end(data: &[u8]) -> &[u8] {
 }
 
 impl std::future::Future for UpgradeFut {
-  type Output = Result<WebSocket<UpgradedWebsocketIo>, WSocketError>;
+  type Output = Result<WebSocket<TokioIo<Upgraded>>, WSocketError>;
 
   fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
     let this = self.project();

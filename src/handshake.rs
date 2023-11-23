@@ -1,11 +1,12 @@
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
-use http_body_util::{Empty, Full};
+use http_body_util::Empty;
 use hyper::body::{Bytes, Incoming};
 use hyper::client::conn::http1;
 use hyper::header::{
   CONNECTION, HOST, SEC_WEBSOCKET_KEY, SEC_WEBSOCKET_VERSION, UPGRADE, USER_AGENT,
 };
+use hyper::upgrade::Upgraded;
 use hyper::StatusCode;
 use hyper::{upgrade, Response};
 use hyper::{Request, Uri};
@@ -13,17 +14,17 @@ use hyper_util::rt::tokio::TokioIo;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::error;
 
-use crate::{UpgradedWebsocketIo, WSocketError, WebSocket};
+use crate::{WSocketError, WebSocket};
 
 pub async fn handshake<S>(
+  socket: S,
   uri: &Uri,
   host: &str,
   port: u16,
   user_agent: &str,
-  socket: S,
   max_payload_len: usize,
   masking: bool,
-) -> Result<(WebSocket<UpgradedWebsocketIo>, Response<Incoming>), WSocketError>
+) -> Result<(WebSocket<TokioIo<Upgraded>>, Response<Incoming>), WSocketError>
 where
   S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
