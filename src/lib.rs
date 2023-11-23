@@ -1,3 +1,8 @@
+#[cfg(any(feature = "handshake", feature = "upgrade"))]
+use hyper::upgrade::Upgraded;
+#[cfg(any(feature = "handshake", feature = "upgrade"))]
+use hyper_util::rt::TokioIo;
+
 pub use close::{Close, CloseCode};
 pub use error::WSocketError;
 pub use error::WSocketResult;
@@ -27,3 +32,6 @@ pub enum Message<'a> {
   Ping(&'a [u8]),
   Pong(&'a [u8]),
 }
+
+#[cfg(any(feature = "handshake", feature = "upgrade"))]
+type UpgradedWebsocketIo = TokioIo<Upgraded>;

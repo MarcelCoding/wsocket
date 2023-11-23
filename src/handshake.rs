@@ -6,7 +6,6 @@ use hyper::client::conn::http1;
 use hyper::header::{
   CONNECTION, HOST, SEC_WEBSOCKET_KEY, SEC_WEBSOCKET_VERSION, UPGRADE, USER_AGENT,
 };
-use hyper::upgrade::Upgraded;
 use hyper::StatusCode;
 use hyper::{upgrade, Response};
 use hyper::{Request, Uri};
@@ -14,7 +13,7 @@ use hyper_util::rt::tokio::TokioIo;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::error;
 
-use crate::{WSocketError, WebSocket};
+use crate::{UpgradedWebsocketIo, WSocketError, WebSocket};
 
 pub async fn handshake<S>(
   uri: &Uri,
@@ -24,7 +23,7 @@ pub async fn handshake<S>(
   socket: S,
   max_payload_len: usize,
   masking: bool,
-) -> Result<(WebSocket<TokioIo<Upgraded>>, Response<Incoming>), WSocketError>
+) -> Result<(WebSocket<UpgradedWebsocketIo>, Response<Incoming>), WSocketError>
 where
   S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
@@ -88,7 +87,7 @@ fn verify<B>(response: &Response<B>) -> Result<(), WSocketError> {
   if !headers
     .get(CONNECTION)
     .and_then(|h| h.to_str().ok())
-    .map(|h| h.eq_ignore_ascii_case("Upgrade"))
+    .map(|h| h.eq_ignore_ascii_case("upgrade"))
     .unwrap_or(false)
   {
     return Err(WSocketError::InvalidConnectionHeader);

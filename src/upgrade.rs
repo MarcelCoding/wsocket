@@ -7,14 +7,14 @@ use hyper::body::Bytes;
 use hyper::header::{
   CONNECTION, SEC_WEBSOCKET_ACCEPT, SEC_WEBSOCKET_KEY, SEC_WEBSOCKET_VERSION, UPGRADE,
 };
-use hyper::upgrade::Upgraded;
-use hyper::Request;
+use hyper::http::HeaderName;
 use hyper::Response;
+use hyper::{HeaderMap, Request};
 use hyper_util::rt::TokioIo;
 use pin_project_lite::pin_project;
 
 use crate::idk::sec_websocket_protocol;
-use crate::{WSocketError, WebSocket};
+use crate::{UpgradedWebsocketIo, WSocketError, WebSocket};
 
 pin_project! {
   pub struct UpgradeFut {
@@ -34,12 +34,13 @@ pub fn upgrade<B>(
     .headers()
     .get(SEC_WEBSOCKET_KEY)
     .ok_or(WSocketError::MissingSecWebSocketKey)?;
-  if request
+
+  let websocket_version = request
     .headers()
     .get(SEC_WEBSOCKET_VERSION)
-    .map(|v| v.as_bytes())
-    != Some(b"13")
-  {
+    .map(|v| v.as_bytes());
+
+  if websocket_version != Some(b"13") {
     return Err(WSocketError::InvalidSecWebsocketVersion);
   }
 
@@ -63,15 +64,11 @@ pub fn upgrade<B>(
 }
 
 pub fn is_upgrade_request<B>(request: &Request<B>) -> bool {
-  header_contains_value(request.headers(), CONNECTION, "Upgrade")
+  header_contains_value(request.headers(), CONNECTION, "upgrade")
     && header_contains_value(request.headers(), UPGRADE, "websocket")
 }
 
-fn header_contains_value(
-  headers: &hyper::HeaderMap,
-  header: impl hyper::header::AsHeaderName,
-  value: impl AsRef<[u8]>,
-) -> bool {
+fn header_contains_value(headers: &HeaderMap, header: HeaderName, value: impl AsRef<[u8]>) -> bool {
   let value = value.as_ref();
   for header in headers.get_all(header) {
     if header
@@ -106,20 +103,18 @@ fn trim_end(data: &[u8]) -> &[u8] {
 }
 
 impl std::future::Future for UpgradeFut {
-  type Output = Result<WebSocket<TokioIo<Upgraded>>, WSocketError>;
+  type Output = Result<WebSocket<UpgradedWebsocketIo>, WSocketError>;
 
   fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
     let this = self.project();
+
     let upgraded = match this.inner.poll(cx) {
       Poll::Pending => return Poll::Pending,
       Poll::Ready(Ok(x)) => x,
-      Poll::Ready(Err(err)) => {
-        return Poll::Ready(Err(err.into()));
-      }
+      Poll::Ready(Err(err)) => return Poll::Ready(Err(err.into())),
     };
 
     let io = TokioIo::new(upgraded);
-
     Poll::Ready(Ok(WebSocket::server(io, *this.max_payload_len)))
   }
 }
