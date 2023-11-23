@@ -1,6 +1,6 @@
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
-use http_body_util::Full;
+use http_body_util::{Empty, Full};
 use hyper::body::{Bytes, Incoming};
 use hyper::client::conn::http1;
 use hyper::header::{
@@ -33,7 +33,7 @@ where
 
   let (mut sender, conn) = http1::handshake(io).await?;
   tokio::spawn(async move {
-    if let Err(e) = conn.await {
+    if let Err(e) = conn.with_upgrades().await {
       error!("Error polling connection: {}", e);
     }
   });
@@ -49,7 +49,7 @@ where
   ))
 }
 
-fn generate_request(uri: &Uri, host: &str, port: u16, user_agent: &str) -> Request<Full<Bytes>> {
+fn generate_request(uri: &Uri, host: &str, port: u16, user_agent: &str) -> Request<Empty<Bytes>> {
   let key: [u8; 16] = rand::random();
   let encoded_key = STANDARD.encode(key);
 
@@ -60,7 +60,7 @@ fn generate_request(uri: &Uri, host: &str, port: u16, user_agent: &str) -> Reque
     .header(SEC_WEBSOCKET_KEY, encoded_key)
     .header(SEC_WEBSOCKET_VERSION, "13")
     .header(USER_AGENT, user_agent)
-    .body(Full::default())
+    .body(Empty::new())
     .unwrap()
 }
 
