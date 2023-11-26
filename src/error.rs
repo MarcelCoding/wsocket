@@ -56,7 +56,7 @@ pub enum WSocketError {
   InvalidUpgradeHeader,
   #[error("invalid websocket http connection header")]
   InvalidConnectionHeader,
-  #[cfg(any(feature = "upgrade", feature = "handshake"))]
+  #[cfg(any(feature = "upgrade", all(feature = "client", feature = "handshake")))]
   #[error("hyper error")]
   Hyper(
     #[source]
@@ -93,7 +93,7 @@ impl WSocketError {
       Self::InvalidStatusCode { .. } => None,
       Self::InvalidUpgradeHeader => None,
       Self::InvalidConnectionHeader => None,
-      #[cfg(any(feature = "upgrade", feature = "handshake"))]
+      #[cfg(any(feature = "upgrade", all(feature = "client", feature = "handshake")))]
       Self::Hyper(_) => None,
       Self::MissingSecWebSocketKey => None,
       Self::InvalidSecWebsocketVersion => None,

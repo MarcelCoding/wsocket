@@ -1,9 +1,10 @@
-use base64::engine::general_purpose::STANDARD;
-use base64::Engine;
+use std::future::Future;
 use std::pin::Pin;
 use std::task::Context;
 use std::task::Poll;
 
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use http_body_util::Full;
 use hyper::body::Bytes;
 use hyper::header::{
@@ -113,7 +114,7 @@ fn trim_end(data: &[u8]) -> &[u8] {
   }
 }
 
-impl std::future::Future for UpgradeFut {
+impl Future for UpgradeFut {
   type Output = Result<WebSocket<TokioIo<Upgraded>>, WSocketError>;
 
   fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
