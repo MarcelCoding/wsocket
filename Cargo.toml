@@ -5,7 +5,7 @@ license = "Apache-2.0 OR MIT"
 keywords = ["websocket", "tokio", "async", "http"]
 repository = "https://github.com/MarcelCoding/wsocket.git"
 homepage = "https://github.com/MarcelCoding/wsocket"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 
 [features]
