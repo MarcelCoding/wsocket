@@ -15,18 +15,18 @@ upgrade = ["dep:hyper", "dep:base64", "dep:http-body-util", "dep:hyper-util", "d
 
 [dependencies]
 rand = { version = "0.8", default-features = false, features = ["std", "std_rng"], optional = true }
-tokio = { version = "1.34", default-features = false, features = ["io-util", "sync", "macros"] }
+tokio = { version = "1.37", default-features = false, features = ["io-util", "sync", "macros"] }
 hyper-util = { version = "0.1", default-features = false, optional = true, features = ["tokio"] }
-base64 = { version = "0.21", default-features = false, optional = true, features = ["alloc"] }
+base64 = { version = "0.22", default-features = false, optional = true, features = ["alloc"] }
 pin-project-lite = { version = "0.2", default-features = false, optional = true }
 http-body-util = { version = "0.1", default-features = false, optional = true }
 sha1 = { version = "0.10", default-features = false, optional = true }
-hyper = { version = "1.0", default-features = false, optional = true }
+hyper = { version = "1.2", default-features = false, optional = true }
 thiserror = { version = "1.0", default-features = false }
 tracing = { version = "0.1", default-features = false }
 
 [dev-dependencies]
-tokio = { version = "1.34", default-features = false, features = ["rt-multi-thread"] }
+tokio = { version = "1.37", default-features = false, features = ["rt-multi-thread"] }
 
 [package.metadata.docs.rs]
 all-features = true

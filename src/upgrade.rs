@@ -21,7 +21,7 @@ use sha1::{Digest, Sha1};
 use crate::{WSocketError, WebSocket};
 
 pin_project! {
-  pub struct UpgradeFut {
+  pub struct UpgradeFuture {
     #[pin]
     inner: hyper::upgrade::OnUpgrade,
     max_payload_len: usize,
@@ -31,7 +31,7 @@ pin_project! {
 pub fn upgrade<B>(
   mut request: impl std::borrow::BorrowMut<Request<B>>,
   max_payload_len: usize,
-) -> Result<(Response<Full<Bytes>>, UpgradeFut), WSocketError> {
+) -> Result<(Response<Full<Bytes>>, UpgradeFuture), WSocketError> {
   let request = request.borrow_mut();
 
   let key = request
@@ -45,7 +45,7 @@ pub fn upgrade<B>(
     .map(|v| v.as_bytes());
 
   if websocket_version != Some(b"13") {
-    return Err(WSocketError::InvalidSecWebsocketVersion);
+    return Err(WSocketError::UnsupportedSecWebsocketVersion);
   }
 
   let response = Response::builder()
@@ -59,7 +59,7 @@ pub fn upgrade<B>(
     .body(Full::new(Bytes::from("switching to websocket protocol")))
     .expect("bug: failed to build response");
 
-  let stream = UpgradeFut {
+  let stream = UpgradeFuture {
     inner: hyper::upgrade::on(request),
     max_payload_len,
   };
@@ -114,7 +114,7 @@ fn trim_end(data: &[u8]) -> &[u8] {
   }
 }
 
-impl Future for UpgradeFut {
+impl Future for UpgradeFuture {
   type Output = Result<WebSocket<TokioIo<Upgraded>>, WSocketError>;
 
   fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -122,7 +122,7 @@ impl Future for UpgradeFut {
 
     let upgraded = match this.inner.poll(cx) {
       Poll::Pending => return Poll::Pending,
-      Poll::Ready(Ok(x)) => x,
+      Poll::Ready(Ok(upgraded)) => upgraded,
       Poll::Ready(Err(err)) => return Poll::Ready(Err(err.into())),
     };
 

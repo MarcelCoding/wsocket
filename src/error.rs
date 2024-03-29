@@ -65,8 +65,8 @@ pub enum WSocketError {
   ),
   #[error("missing sec web socket key")]
   MissingSecWebSocketKey,
-  #[error("invalid sec websocket version")]
-  InvalidSecWebsocketVersion,
+  #[error("unsupported sec websocket version")]
+  UnsupportedSecWebsocketVersion,
 }
 
 impl WSocketError {
@@ -96,7 +96,7 @@ impl WSocketError {
       #[cfg(any(feature = "upgrade", all(feature = "client", feature = "handshake")))]
       Self::Hyper(_) => None,
       Self::MissingSecWebSocketKey => None,
-      Self::InvalidSecWebsocketVersion => None,
+      Self::UnsupportedSecWebsocketVersion => None,
     }
   }
 }
